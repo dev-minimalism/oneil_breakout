@@ -68,7 +68,7 @@ class UnifiedBreakoutDetector:
         'offset': self.last_update_id + 1,
         'timeout': 1
       }
-      response = requests.get(url, params=params)
+      response = requests.get(url, params=params, timeout=5)
 
       if response.status_code == 200:
         data = response.json()
@@ -76,15 +76,17 @@ class UnifiedBreakoutDetector:
           for update in data['result']:
             self.last_update_id = update['update_id']
 
-            # 메시지가 있고, 지정된 채팅방에서 온 경우
+            # 메시지가 있는 경우
             if 'message' in update:
               message = update['message']
               chat_id = str(message['chat']['id'])
-              text = message.get('text', '')
+              text = message.get('text', '').strip()
 
-              # /scan 명령어 확인
-              if chat_id == self.chat_id and text.strip() == '/scan':
-                print(f"\n🔔 /scan 명령어 수신!")
+              print(f"📨 메시지 수신: '{text}' from {chat_id}")
+
+              # /scan 명령어 확인 (chat_id 비교를 문자열로 통일)
+              if str(self.chat_id) == chat_id and text == '/scan':
+                print(f"🔔 /scan 명령어 감지!")
                 return True
 
       return False
@@ -646,10 +648,13 @@ def main():
 """
   detector.send_telegram_message(start_msg)
   print(start_msg)
+  print(f"🔧 Chat ID: {CHAT_ID}")
+  print(f"📱 텔레그램 메시지를 5초마다 확인합니다.\n")
 
   # 무한 루프 실행
   try:
     last_scan_time = datetime.now()
+    check_counter = 0  # 메시지 확인 카운터
 
     while True:
       current_time = datetime.now()
@@ -667,9 +672,11 @@ def main():
         )
         last_scan_time = datetime.now()
         detector.send_telegram_message("✅ 수동 스캔 완료!")
+        check_counter = 0  # 카운터 리셋
 
       # 정기 스캔 시간 확인
       elif time_since_last_scan >= SCAN_INTERVAL:
+        print("\n⏰ 정기 스캔 시작...")
         detector.run_unified_scan(
             us_tickers=US_WATCH_LIST if SCAN_US else None,
             kr_tickers=KR_WATCH_LIST if SCAN_KR else None,
@@ -677,13 +684,16 @@ def main():
             scan_kr=SCAN_KR
         )
         last_scan_time = datetime.now()
+        check_counter = 0  # 카운터 리셋
 
-      # 다음 정기 스캔까지 남은 시간 표시 (최초 1회만)
-      if time_since_last_scan < 5:
+      # 30초마다 (6번 체크할 때마다) 상태 출력
+      if check_counter % 6 == 0:
         next_scan = last_scan_time + timedelta(seconds=SCAN_INTERVAL)
-        print(f"⏰ 다음 스캔: {next_scan.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"💬 /scan 명령어로 즉시 스캔 가능")
-        print(f"💤 대기 중...\n")
+        remaining = int((next_scan - current_time).total_seconds())
+        if remaining > 0:
+          print(f"💤 대기중... (다음 스캔까지 {remaining}초 | /scan 명령어로 즉시 스캔)")
+
+      check_counter += 1
 
       # 5초 대기 (메시지 체크 간격)
       time.sleep(5)
