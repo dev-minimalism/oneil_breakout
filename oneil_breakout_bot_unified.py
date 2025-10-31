@@ -60,8 +60,11 @@ class UnifiedBreakoutDetector:
     except Exception as e:
       print(f"❌ 텔레그램 전송 오류: {e}")
 
-  def check_telegram_messages(self) -> bool:
-    """텔레그램 메시지 확인 및 /scan 명령어 감지"""
+  def check_telegram_messages(self):
+    """
+    텔레그램 메시지 확인 및 명령어 감지
+    Returns: None (명령어 없음), 'kr' (한국장 스캔), 'us' (미국장 스캔), 'all' (전체 스캔)
+    """
     try:
       url = f"https://api.telegram.org/bot{self.telegram_token}/getUpdates"
       params = {
@@ -80,19 +83,26 @@ class UnifiedBreakoutDetector:
             if 'message' in update:
               message = update['message']
               chat_id = str(message['chat']['id'])
-              text = message.get('text', '').strip()
+              text = message.get('text', '').strip().lower()
 
               print(f"📨 메시지 수신: '{text}' from {chat_id}")
 
-              # /scan 명령어 확인 (chat_id 비교를 문자열로 통일)
-              if str(self.chat_id) == chat_id and text == '/scan':
-                print(f"🔔 /scan 명령어 감지!")
-                return True
+              # 명령어 확인 (chat_id 비교를 문자열로 통일)
+              if str(self.chat_id) == chat_id:
+                if text == '/scan_kr':
+                  print(f"🔔 /scan_kr 명령어 감지!")
+                  return 'kr'
+                elif text == '/scan_us':
+                  print(f"🔔 /scan_us 명령어 감지!")
+                  return 'us'
+                elif text == '/scan':
+                  print(f"🔔 /scan 명령어 감지!")
+                  return 'all'
 
-      return False
+      return None
     except Exception as e:
       print(f"⚠️  메시지 확인 오류: {e}")
-      return False
+      return None
 
   # ========================================
   # 미국 주식 관련 메서드
@@ -642,7 +652,9 @@ def main():
   - 베이스 돌파
 
 💬 명령어:
-  /scan - 즉시 스캔 실행
+  /scan - 전체 시장 즉시 스캔
+  /scan_kr - 🇰🇷 한국장만 즉시 스캔
+  /scan_us - 🇺🇸 미국장만 즉시 스캔
 
 시작 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
@@ -660,18 +672,45 @@ def main():
       current_time = datetime.now()
       time_since_last_scan = (current_time - last_scan_time).total_seconds()
 
-      # /scan 명령어 확인
-      if detector.check_telegram_messages():
-        # 즉시 스캔 실행
-        detector.send_telegram_message("🔍 수동 스캔을 시작합니다...")
-        detector.run_unified_scan(
-            us_tickers=US_WATCH_LIST if SCAN_US else None,
-            kr_tickers=KR_WATCH_LIST if SCAN_KR else None,
-            scan_us=SCAN_US,
-            scan_kr=SCAN_KR
-        )
+      # 텔레그램 명령어 확인
+      scan_command = detector.check_telegram_messages()
+
+      if scan_command:
+        # 명령어에 따른 스캔 실행
+        if scan_command == 'kr':
+          # 한국장만 스캔
+          detector.send_telegram_message("🇰🇷 한국장 수동 스캔을 시작합니다...")
+          detector.run_unified_scan(
+              us_tickers=None,
+              kr_tickers=KR_WATCH_LIST,
+              scan_us=False,
+              scan_kr=True
+          )
+          detector.send_telegram_message("✅ 한국장 수동 스캔 완료!")
+
+        elif scan_command == 'us':
+          # 미국장만 스캔
+          detector.send_telegram_message("🇺🇸 미국장 수동 스캔을 시작합니다...")
+          detector.run_unified_scan(
+              us_tickers=US_WATCH_LIST,
+              kr_tickers=None,
+              scan_us=True,
+              scan_kr=False
+          )
+          detector.send_telegram_message("✅ 미국장 수동 스캔 완료!")
+
+        elif scan_command == 'all':
+          # 전체 시장 스캔
+          detector.send_telegram_message("🌍 전체 시장 수동 스캔을 시작합니다...")
+          detector.run_unified_scan(
+              us_tickers=US_WATCH_LIST if SCAN_US else None,
+              kr_tickers=KR_WATCH_LIST if SCAN_KR else None,
+              scan_us=SCAN_US,
+              scan_kr=SCAN_KR
+          )
+          detector.send_telegram_message("✅ 전체 시장 수동 스캔 완료!")
+
         last_scan_time = datetime.now()
-        detector.send_telegram_message("✅ 수동 스캔 완료!")
         check_counter = 0  # 카운터 리셋
 
       # 정기 스캔 시간 확인
@@ -691,7 +730,7 @@ def main():
         next_scan = last_scan_time + timedelta(seconds=SCAN_INTERVAL)
         remaining = int((next_scan - current_time).total_seconds())
         if remaining > 0:
-          print(f"💤 대기중... (다음 스캔까지 {remaining}초 | /scan 명령어로 즉시 스캔)")
+          print(f"💤 대기중... (다음 스캔까지 {remaining}초 | /scan_kr, /scan_us, /scan 명령어로 즉시 스캔)")
 
       check_counter += 1
 
