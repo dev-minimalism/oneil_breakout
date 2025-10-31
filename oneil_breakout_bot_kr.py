@@ -144,7 +144,7 @@ class KoreanOneilBreakoutDetector:
           'resistance': int(resistance),
           'current_price': int(current_price),
           'breakout_pct': round(
-            ((current_price - resistance) / resistance) * 100, 2)
+              ((current_price - resistance) / resistance) * 100, 2)
         }
     except Exception as e:
       print(f"⚠️  {ticker} 컵앤핸들 분석 오류: {e}")
