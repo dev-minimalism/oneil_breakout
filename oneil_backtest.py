@@ -192,6 +192,7 @@ class BacktestEngine:
       pattern: str, market: str):
     """포지션 진입"""
     # 사용 가능한 자본의 20%로 매수 (최대 5개 종목 분산)
+    # position_size = self.initial_capital * 0.2
     position_size = self.capital * 0.2
     shares = int(position_size / entry_price)
 
@@ -412,7 +413,7 @@ class BacktestEngine:
         if days > 0:
           years = days / 365.25
           annualized_return = (((final_capital / self.initial_capital) ** (
-                1 / years)) - 1) * 100
+              1 / years)) - 1) * 100
       except ValueError:
         pass  # 날짜 형식 오류 시 0으로 유지
 
@@ -535,7 +536,93 @@ def example_us_stocks():
   engine = BacktestEngine(initial_capital=100000)
 
   # 테스트할 종목
-  tickers = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMD']
+  tickers = ["AAPL",
+             "MSFT",
+             "GOOGL",
+             "AMZN",
+             "META",
+             "NVDA",
+             "AMD",
+             "AVGO",
+             "TSLA",
+             "NFLX",
+             "CRM",
+             "ADBE",
+             "PLTR",
+             "SNOW",
+             "CRWD",
+             "NET",
+             "DDOG",
+             "ZS",
+             "COIN",
+             "SQ",
+             "PYPL",
+             "SHOP",
+             "TSM",
+             "JPM",
+             "WMT",
+             "LLY",
+             "ORCL",
+             "V",
+             "MA",
+             "XOM",
+             "COST",
+             "JNJ",
+             "HD",
+             "PG",
+             "SAP",
+             "BAC",
+             "ABBV",
+             "ASML",
+             "NVO",
+             "KO",
+             "GE",
+             "PM",
+             "CSCO",
+             "UNH",
+             "BABA",
+             "CVX",
+             "IBM",
+             "TMUS",
+             "WFC",
+             "NVS",
+             "ABT",
+             "MS",
+             "TM",
+             "AZN",
+             "AXP",
+             "LIN",
+             "HSBC",
+             "MCD",
+             "DIS",
+             "HOOD",
+             "UMC",
+             "BMNR",
+             "CRCL",
+             "RDDT",
+             "QUBT",
+             "WBTN",
+             "CRWV",
+             "VRT",
+             "LMT",
+             "BLK",
+             "RBLX",
+             "FIG",
+             "SMR",
+             "CPNG",
+             "CRSP",
+             "SOUN",
+             "TLN",
+             "SERV",
+             "RZLV",
+             "TTWO",
+             "RKLB",
+             "ASTS",
+             "IREN",
+             "RGTI",
+             "MP",
+             "CLS",
+             "MELI"]
 
   # 백테스트 실행 (최근 2년)
   end_date = datetime.now().strftime('%Y-%m-%d')
@@ -564,7 +651,25 @@ def example_kr_stocks():
   engine = BacktestEngine(initial_capital=10000000)
 
   # 테스트할 종목 (삼성전자, SK하이닉스, NAVER, 카카오, LG에너지솔루션)
-  tickers = ['005930', '000660', '035420', '035720', '373220']
+  tickers = ["005930",
+             "000660",
+             "035420",
+             "035720",
+             "373220",
+             "086520",
+             "247540",
+             "066970",
+             "068270",
+             "091990",
+             "207940",
+             "326030",
+             "005380",
+             "000270",
+             "051910",
+             "006400",
+             "096770",
+             "009540",
+             "010140"]
 
   # 백테스트 실행 (최근 2년)
   end_date = datetime.now().strftime('%Y-%m-%d')
