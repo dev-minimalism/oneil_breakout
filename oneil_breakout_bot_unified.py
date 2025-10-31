@@ -42,6 +42,7 @@ class UnifiedBreakoutDetector:
     self.telegram_token = telegram_token
     self.chat_id = chat_id
     self.base_url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
+    self.last_update_id = 0  # 마지막으로 처리한 메시지 ID
 
   def send_telegram_message(self, message: str):
     """텔레그램으로 메시지 전송"""
@@ -58,6 +59,38 @@ class UnifiedBreakoutDetector:
         print(f"❌ 텔레그램 전송 실패: {response.status_code}")
     except Exception as e:
       print(f"❌ 텔레그램 전송 오류: {e}")
+
+  def check_telegram_messages(self) -> bool:
+    """텔레그램 메시지 확인 및 /scan 명령어 감지"""
+    try:
+      url = f"https://api.telegram.org/bot{self.telegram_token}/getUpdates"
+      params = {
+        'offset': self.last_update_id + 1,
+        'timeout': 1
+      }
+      response = requests.get(url, params=params)
+
+      if response.status_code == 200:
+        data = response.json()
+        if data['ok'] and data['result']:
+          for update in data['result']:
+            self.last_update_id = update['update_id']
+
+            # 메시지가 있고, 지정된 채팅방에서 온 경우
+            if 'message' in update:
+              message = update['message']
+              chat_id = str(message['chat']['id'])
+              text = message.get('text', '')
+
+              # /scan 명령어 확인
+              if chat_id == self.chat_id and text.strip() == '/scan':
+                print(f"\n🔔 /scan 명령어 수신!")
+                return True
+
+      return False
+    except Exception as e:
+      print(f"⚠️  메시지 확인 오류: {e}")
+      return False
 
   # ========================================
   # 미국 주식 관련 메서드
@@ -164,7 +197,7 @@ class UnifiedBreakoutDetector:
           'resistance': resistance,
           'current_price': current_price,
           'breakout_pct': round(
-            ((current_price - resistance) / resistance) * 100, 2)
+              ((current_price - resistance) / resistance) * 100, 2)
         }
 
         # 한국 주식이면 종목명 추가
@@ -606,6 +639,9 @@ def main():
   - 피벗 포인트 돌파
   - 베이스 돌파
 
+💬 명령어:
+  /scan - 즉시 스캔 실행
+
 시작 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
   detector.send_telegram_message(start_msg)
@@ -613,19 +649,44 @@ def main():
 
   # 무한 루프 실행
   try:
-    while True:
-      detector.run_unified_scan(
-          us_tickers=US_WATCH_LIST if SCAN_US else None,
-          kr_tickers=KR_WATCH_LIST if SCAN_KR else None,
-          scan_us=SCAN_US,
-          scan_kr=SCAN_KR
-      )
+    last_scan_time = datetime.now()
 
-      # 다음 스캔까지 대기
-      next_scan = datetime.now() + timedelta(seconds=SCAN_INTERVAL)
-      print(f"⏰ 다음 스캔: {next_scan.strftime('%Y-%m-%d %H:%M:%S')}")
-      print(f"💤 {SCAN_INTERVAL // 60}분 대기 중...\n")
-      time.sleep(SCAN_INTERVAL)
+    while True:
+      current_time = datetime.now()
+      time_since_last_scan = (current_time - last_scan_time).total_seconds()
+
+      # /scan 명령어 확인
+      if detector.check_telegram_messages():
+        # 즉시 스캔 실행
+        detector.send_telegram_message("🔍 수동 스캔을 시작합니다...")
+        detector.run_unified_scan(
+            us_tickers=US_WATCH_LIST if SCAN_US else None,
+            kr_tickers=KR_WATCH_LIST if SCAN_KR else None,
+            scan_us=SCAN_US,
+            scan_kr=SCAN_KR
+        )
+        last_scan_time = datetime.now()
+        detector.send_telegram_message("✅ 수동 스캔 완료!")
+
+      # 정기 스캔 시간 확인
+      elif time_since_last_scan >= SCAN_INTERVAL:
+        detector.run_unified_scan(
+            us_tickers=US_WATCH_LIST if SCAN_US else None,
+            kr_tickers=KR_WATCH_LIST if SCAN_KR else None,
+            scan_us=SCAN_US,
+            scan_kr=SCAN_KR
+        )
+        last_scan_time = datetime.now()
+
+      # 다음 정기 스캔까지 남은 시간 표시 (최초 1회만)
+      if time_since_last_scan < 5:
+        next_scan = last_scan_time + timedelta(seconds=SCAN_INTERVAL)
+        print(f"⏰ 다음 스캔: {next_scan.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"💬 /scan 명령어로 즉시 스캔 가능")
+        print(f"💤 대기 중...\n")
+
+      # 5초 대기 (메시지 체크 간격)
+      time.sleep(5)
 
   except KeyboardInterrupt:
     print("\n\n⛔ 프로그램 종료")
