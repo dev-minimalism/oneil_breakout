@@ -385,19 +385,20 @@ class SmartUnifiedBreakoutDetector:
     # 주말 체크
     is_weekend = weekday >= 5
 
-    # 한국 장중: 09:00 - 15:30 (평일)
+    # 한국 장중: 09:00 - 17:30 (평일)
     kr_open = dt_time(9, 0)
-    kr_close = dt_time(15, 30)
+    kr_close = dt_time(17, 30)
     is_kr_market = (not is_weekend) and (kr_open <= current_time <= kr_close)
 
     # 미국 장중 (한국 시간): 22:30 - 06:00 다음날
     # 여름시간(3월 둘째주 ~ 11월 첫째주): 22:30 - 05:00
-    # 겨울시간: 23:30 - 06:00
+    # 겨울시간: 27:30 - 06:00
     # 간단하게 22:30 - 06:00으로 설정
-    us_open_night = dt_time(22, 30)
+    us_open_night = dt_time(17, 30)
     us_close_morning = dt_time(6, 0)
 
     is_us_market = False
+
     if not is_weekend:
       # 22:30 이후 (당일 밤)
       if current_time >= us_open_night:
