@@ -1,9 +1,10 @@
 """
-윌리엄 오닐 돌파매매(CAN SLIM) 통합 알림 시스템 - 스마트 버전
+윌리엄 오닐 돌파매매(CAN SLIM) 통합 알림 시스템 - 스마트 버전 (수정)
 - 시간대별 자동 시장 선택 (한국 장중/미국 장중)
 - 텔레그램 명령어로 종목 관리
 - 미국 주식 + 한국 주식 통합 지원
 - 컵앤핸들, 피벗 포인트, 베이스 돌파 패턴 감지
+- 수정: /scan 명령 시 별도 스레드 실행 + 동시 스캔 방지
 """
 
 import json
@@ -51,6 +52,10 @@ class SmartUnifiedBreakoutDetector:
     self.watchlist_file = watchlist_file
     self.positions_file = positions_file
     self.last_update_id = 0
+
+    # 🔧 수정: 동시 스캔 방지를 위한 락 추가
+    self.scan_lock = threading.Lock()
+    self.is_scanning = False
 
     # 감시 종목 로드
     self.us_watchlist, self.kr_watchlist = self.load_watchlist()
@@ -218,8 +223,8 @@ class SmartUnifiedBreakoutDetector:
       print(f"❌ 포지션 저장 실패: {e}")
       return False
 
-  def add_position(self, ticker: str, market: str, entry_price: float, 
-                  pattern: str, signal: Dict):
+  def add_position(self, ticker: str, market: str, entry_price: float,
+      pattern: str, signal: Dict):
     """포지션 추가"""
     position = {
       'ticker': ticker,
@@ -241,13 +246,13 @@ class SmartUnifiedBreakoutDetector:
       if pos['ticker'] == ticker:
         entry_price = pos['entry_price']
         profit_pct = ((exit_price - entry_price) / entry_price) * 100
-        
+
         # 보유 기간 계산
         entry_date = datetime.strptime(pos['entry_date'], '%Y-%m-%d %H:%M:%S')
         holding_days = (datetime.now() - entry_date).days
-        
+
         market_emoji = "🇺🇸" if pos['market'] == 'US' else "🇰🇷"
-        
+
         # 청산 메시지
         msg = f"""
 {market_emoji} <b>[포지션 청산]</b>
@@ -274,51 +279,53 @@ class SmartUnifiedBreakoutDetector:
     """포지션 추적 및 청산 조건 확인"""
     if not self.positions:
       return
-    
+
     print(f"\n📊 포지션 추적 중... ({len(self.positions)}개)")
-    
+
     for pos in self.positions.copy():
       ticker = pos['ticker']
       market = pos['market']
       entry_price = pos['entry_price']
       entry_date = datetime.strptime(pos['entry_date'], '%Y-%m-%d %H:%M:%S')
       holding_days = (datetime.now() - entry_date).days
-      
+
       try:
         # 현재가 조회
         if market == 'US':
           df = self.get_us_stock_data(ticker, period="5d")
         else:
           df = self.get_kr_stock_data(ticker, days=7)
-        
+
         if df is None or len(df) == 0:
           continue
-        
+
         current_price = df['Close'].iloc[-1]
         profit_pct = ((current_price - entry_price) / entry_price) * 100
-        
-        print(f"  🔍 {ticker}: {current_price:,.2f} ({profit_pct:+.2f}%)", end="")
-        
+
+        print(f"  🔍 {ticker}: {current_price:,.2f} ({profit_pct:+.2f}%)",
+              end="")
+
         # 손절 체크
         if current_price <= pos['stop_loss']:
           print(f" ⚠️ 손절!")
           self.close_position(ticker, current_price, "손절 (-8%)")
-        
+
         # 익절 체크
         elif current_price >= pos['take_profit']:
           print(f" ✅ 익절!")
           self.close_position(ticker, current_price, "익절 (+20%)")
-        
+
         # 보유기간 만료 체크
         elif holding_days >= 30:
           print(f" ⏰ 기간만료!")
-          self.close_position(ticker, current_price, f"보유기간 만료 ({holding_days}일)")
-        
+          self.close_position(ticker, current_price,
+                              f"보유기간 만료 ({holding_days}일)")
+
         else:
           print(f" ⚪")
-        
+
         time.sleep(1)
-        
+
       except Exception as e:
         print(f" ❌ 오류: {e}")
 
@@ -326,32 +333,33 @@ class SmartUnifiedBreakoutDetector:
     """포지션 목록 조회"""
     if not self.positions:
       return "📊 <b>현재 포지션</b>\n\n보유 중인 포지션이 없습니다."
-    
+
     msg = f"📊 <b>현재 포지션</b> ({len(self.positions)}개)\n\n"
-    
+
     for i, pos in enumerate(self.positions, 1):
       ticker = pos['ticker']
       market_emoji = "🇺🇸" if pos['market'] == 'US' else "🇰🇷"
       entry_date = datetime.strptime(pos['entry_date'], '%Y-%m-%d %H:%M:%S')
       holding_days = (datetime.now() - entry_date).days
-      
+
       # 현재가 조회 시도
       try:
         if pos['market'] == 'US':
           df = self.get_us_stock_data(ticker, period="5d")
         else:
           df = self.get_kr_stock_data(ticker, days=7)
-        
+
         if df is not None and len(df) > 0:
           current_price = df['Close'].iloc[-1]
-          profit_pct = ((current_price - pos['entry_price']) / pos['entry_price']) * 100
+          profit_pct = ((current_price - pos['entry_price']) / pos[
+            'entry_price']) * 100
           profit_icon = "📈" if profit_pct > 0 else "📉"
           current_info = f"{current_price:,.2f} ({profit_icon}{profit_pct:+.2f}%)"
         else:
           current_info = "조회 실패"
       except:
         current_info = "조회 실패"
-      
+
       msg += f"""
 {i}. {market_emoji} <b>{ticker}</b>
    진입: {pos['entry_price']:,.2f}
@@ -361,7 +369,7 @@ class SmartUnifiedBreakoutDetector:
    손절: {pos['stop_loss']:,.2f}
    익절: {pos['take_profit']:,.2f}
 """
-    
+
     return msg
 
   # ========================================
@@ -523,38 +531,42 @@ class SmartUnifiedBreakoutDetector:
       if not market_status['kr'] and not market_status['us']:
         msg += "\n⏸️  현재 휴장 시간입니다"
 
+      # 🔧 수정: 스캔 상태 표시 추가
+      if self.is_scanning:
+        msg += "\n\n🔄 현재 스캔 진행 중..."
+
       return msg
 
     # 수동 스캔 명령어
     elif command == '/scan':
       return 'SCAN_ALL'
-    
+
     elif command == '/scan_kr':
       return 'SCAN_KR'
-    
+
     elif command == '/scan_us':
       return 'SCAN_US'
 
     # 포지션 관리 명령어
     elif command == '/positions':
       return self.list_positions()
-    
+
     elif command == '/close':
       if len(parts) < 2:
         return "❌ 사용법: /close [티커]\n예: /close AAPL"
-      
+
       ticker = parts[1].upper()
       # 현재가 조회
       pos = next((p for p in self.positions if p['ticker'] == ticker), None)
       if not pos:
         return f"❌ {ticker} 포지션을 찾을 수 없습니다."
-      
+
       try:
         if pos['market'] == 'US':
           df = self.get_us_stock_data(ticker, period="5d")
         else:
           df = self.get_kr_stock_data(ticker, days=7)
-        
+
         if df is not None and len(df) > 0:
           current_price = df['Close'].iloc[-1]
           self.close_position(ticker, current_price, "수동 청산")
@@ -565,6 +577,32 @@ class SmartUnifiedBreakoutDetector:
         return f"❌ 청산 중 오류: {e}"
 
     return None
+
+  # 🔧 수정: 스캔을 별도 스레드에서 실행하는 헬퍼 메서드 추가
+  def _execute_scan_in_thread(self, scan_kr: bool, scan_us: bool,
+      scan_type: str):
+    """별도 스레드에서 스캔 실행"""
+    # 이미 스캔 중이면 무시
+    if self.is_scanning:
+      self.send_telegram_message("⚠️  이미 스캔이 진행 중입니다. 완료 후 다시 시도해주세요.")
+      return
+
+    # 락 획득 시도
+    if not self.scan_lock.acquire(blocking=False):
+      self.send_telegram_message("⚠️  다른 스캔이 진행 중입니다. 잠시 후 다시 시도해주세요.")
+      return
+
+    try:
+      self.is_scanning = True
+      print(f"\n🔔 {scan_type} 명령어 수신 - 스캔 시작")
+      self.run_manual_scan(scan_kr=scan_kr, scan_us=scan_us)
+      self.send_telegram_message(f"✅ {scan_type} 완료!")
+    except Exception as e:
+      print(f"❌ 스캔 중 오류: {e}")
+      self.send_telegram_message(f"❌ 스캔 중 오류가 발생했습니다: {str(e)}")
+    finally:
+      self.is_scanning = False
+      self.scan_lock.release()
 
   def check_telegram_updates(self):
     """텔레그램 메시지 확인 (명령어 처리)"""
@@ -589,26 +627,35 @@ class SmartUnifiedBreakoutDetector:
               # 올바른 채팅방에서 온 메시지만 처리
               if chat_id == str(self.chat_id):
                 reply = self.process_command(message_text)
-                
-                # 스캔 명령어 처리
+
+                # 🔧 수정: 스캔 명령어를 별도 스레드에서 실행
                 if reply == 'SCAN_ALL':
-                  print("\n🔔 /scan 명령어 수신 - 전체 시장 스캔 시작")
                   self.send_telegram_message("🌍 전체 시장 수동 스캔을 시작합니다...")
-                  self.run_manual_scan(scan_kr=True, scan_us=True)
-                  self.send_telegram_message("✅ 전체 시장 수동 스캔 완료!")
-                  
+                  scan_thread = threading.Thread(
+                      target=self._execute_scan_in_thread,
+                      args=(True, True, "전체 시장 수동 스캔"),
+                      daemon=True
+                  )
+                  scan_thread.start()
+
                 elif reply == 'SCAN_KR':
-                  print("\n🔔 /scan_kr 명령어 수신 - 한국장 스캔 시작")
                   self.send_telegram_message("🇰🇷 한국장 수동 스캔을 시작합니다...")
-                  self.run_manual_scan(scan_kr=True, scan_us=False)
-                  self.send_telegram_message("✅ 한국장 수동 스캔 완료!")
-                  
+                  scan_thread = threading.Thread(
+                      target=self._execute_scan_in_thread,
+                      args=(True, False, "한국장 수동 스캔"),
+                      daemon=True
+                  )
+                  scan_thread.start()
+
                 elif reply == 'SCAN_US':
-                  print("\n🔔 /scan_us 명령어 수신 - 미국장 스캔 시작")
                   self.send_telegram_message("🇺🇸 미국장 수동 스캔을 시작합니다...")
-                  self.run_manual_scan(scan_kr=False, scan_us=True)
-                  self.send_telegram_message("✅ 미국장 수동 스캔 완료!")
-                  
+                  scan_thread = threading.Thread(
+                      target=self._execute_scan_in_thread,
+                      args=(False, True, "미국장 수동 스캔"),
+                      daemon=True
+                  )
+                  scan_thread.start()
+
                 elif reply:
                   # 일반 명령어 응답
                   self.send_telegram_message(reply)
@@ -833,17 +880,17 @@ class SmartUnifiedBreakoutDetector:
               all_signals.append(signal)
               msg = self.format_signal_message(signal)
               self.send_telegram_message(msg)
-              
+
               # 포지션 자동 추가 (중복 체크)
               if not any(p['ticker'] == ticker for p in self.positions):
                 self.add_position(
-                  ticker=ticker,
-                  market='US',
-                  entry_price=signal['current_price'],
-                  pattern=signal['pattern'],
-                  signal=signal
+                    ticker=ticker,
+                    market='US',
+                    entry_price=signal['current_price'],
+                    pattern=signal['pattern'],
+                    signal=signal
                 )
-              
+
               print(f"✅ 신호!")
               time.sleep(1)
           else:
@@ -865,17 +912,17 @@ class SmartUnifiedBreakoutDetector:
               all_signals.append(signal)
               msg = self.format_signal_message(signal)
               self.send_telegram_message(msg)
-              
+
               # 포지션 자동 추가 (중복 체크)
               if not any(p['ticker'] == ticker for p in self.positions):
                 self.add_position(
-                  ticker=ticker,
-                  market='KR',
-                  entry_price=signal['current_price'],
-                  pattern=signal['pattern'],
-                  signal=signal
+                    ticker=ticker,
+                    market='KR',
+                    entry_price=signal['current_price'],
+                    pattern=signal['pattern'],
+                    signal=signal
                 )
-              
+
               print(f"✅ 신호!")
               time.sleep(2)
           else:
@@ -907,6 +954,11 @@ class SmartUnifiedBreakoutDetector:
 
   def run_smart_scan(self):
     """시간대에 따라 자동으로 시장 선택하여 스캔"""
+    # 🔧 수정: 이미 스캔 중이면 건너뛰기
+    if self.is_scanning:
+      print("\n⏸️  수동 스캔이 진행 중입니다. 이번 주기는 건너뜁니다...\n")
+      return []
+
     market_status = self.get_market_status()
 
     print(f"\n{'=' * 60}")
@@ -947,17 +999,17 @@ class SmartUnifiedBreakoutDetector:
               all_signals.append(signal)
               msg = self.format_signal_message(signal)
               self.send_telegram_message(msg)
-              
+
               # 포지션 자동 추가 (중복 체크)
               if not any(p['ticker'] == ticker for p in self.positions):
                 self.add_position(
-                  ticker=ticker,
-                  market='US',
-                  entry_price=signal['current_price'],
-                  pattern=signal['pattern'],
-                  signal=signal
+                    ticker=ticker,
+                    market='US',
+                    entry_price=signal['current_price'],
+                    pattern=signal['pattern'],
+                    signal=signal
                 )
-              
+
               print(f"✅ 신호!")
               time.sleep(1)
           else:
@@ -979,17 +1031,17 @@ class SmartUnifiedBreakoutDetector:
               all_signals.append(signal)
               msg = self.format_signal_message(signal)
               self.send_telegram_message(msg)
-              
+
               # 포지션 자동 추가 (중복 체크)
               if not any(p['ticker'] == ticker for p in self.positions):
                 self.add_position(
-                  ticker=ticker,
-                  market='KR',
-                  entry_price=signal['current_price'],
-                  pattern=signal['pattern'],
-                  signal=signal
+                    ticker=ticker,
+                    market='KR',
+                    entry_price=signal['current_price'],
+                    pattern=signal['pattern'],
+                    signal=signal
                 )
-              
+
               print(f"✅ 신호!")
               time.sleep(2)
           else:
@@ -1087,6 +1139,11 @@ def main():
    /scan_us - 🇺🇸 미국만 즉시 스캔
    /positions - 현재 포지션 보기
    /help - 전체 명령어 보기
+
+✨ 개선사항:
+   • /scan 명령 시 백그라운드 스캔
+   • 주기적 스캔과 독립 동작
+   • 중복 스캔 방지
 
 시작 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
