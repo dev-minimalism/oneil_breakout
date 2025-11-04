@@ -385,9 +385,9 @@ class SmartUnifiedBreakoutDetector:
     # 주말 체크
     is_weekend = weekday >= 5
 
-    # 한국 장중: 09:00 - 17:30 (평일)
-    kr_open = dt_time(9, 0)
-    kr_close = dt_time(17, 30)
+    # 한국 장중: 08:00 - 17:00 (평일)
+    kr_open = dt_time(8, 0)
+    kr_close = dt_time(17, 0)
     is_kr_market = (not is_weekend) and (kr_open <= current_time <= kr_close)
 
     # 미국 장중 (한국 시간): 22:30 - 06:00 다음날
@@ -395,7 +395,7 @@ class SmartUnifiedBreakoutDetector:
     # 겨울시간: 27:30 - 06:00
     # 간단하게 22:30 - 06:00으로 설정
     us_open_night = dt_time(17, 30)
-    us_close_morning = dt_time(6, 0)
+    us_close_morning = dt_time(7, 0)
 
     is_us_market = False
 
@@ -949,6 +949,22 @@ class SmartUnifiedBreakoutDetector:
     else:
       print("⚪ 신호 없음")
 
+      # 신호 없을 때도 알림 전송
+      no_signal_msg = f"""
+⚪ <b>[수동 스캔 완료 - 신호 없음]</b>
+
+📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+🔍 스캔 대상:"""
+      if scan_us:
+        no_signal_msg += f"\n   🇺🇸 미국: {len(self.us_watchlist)}개"
+      if scan_kr:
+        no_signal_msg += f"\n   🇰🇷 한국: {len(self.kr_watchlist)}개"
+
+      no_signal_msg += "\n\n현재 매매 신호를 보이는 종목이 없습니다."
+
+      self.send_telegram_message(no_signal_msg)
+
     print(f"\n{'=' * 60}\n")
 
     return all_signals
@@ -1067,6 +1083,22 @@ class SmartUnifiedBreakoutDetector:
       print()
     else:
       print("⚪ 신호 없음")
+
+      # 신호 없을 때도 알림 전송
+      no_signal_msg = f"""
+⚪ <b>[자동 스캔 완료 - 신호 없음]</b>
+
+📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+🔍 스캔 대상:"""
+      if scan_us:
+        no_signal_msg += f"\n   🇺🇸 미국: {len(self.us_watchlist)}개"
+      if scan_kr:
+        no_signal_msg += f"\n   🇰🇷 한국: {len(self.kr_watchlist)}개"
+
+      no_signal_msg += "\n\n현재 매매 신호를 보이는 종목이 없습니다."
+
+      self.send_telegram_message(no_signal_msg)
 
     print(f"\n{'=' * 60}\n")
 

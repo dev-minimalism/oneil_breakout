@@ -698,8 +698,8 @@ def custom_backtest():
   INITIAL_CAPITAL = 10000000  # 초기 자본
   MARKET = 'US'  # 'US' 또는 'KR'
   TICKERS = ['AAPL', 'MSFT', 'GOOGL']  # 종목 리스트
-  START_DATE = '2023-01-01'  # 시작일
-  END_DATE = '2024-12-31'  # 종료일
+  START_DATE = '2022-01-01'  # 시작일
+  END_DATE = '2022-12-31'  # 종료일
   PATTERNS = ['pivot', 'base']  # 테스트할 패턴
 
   # 백테스트 실행
