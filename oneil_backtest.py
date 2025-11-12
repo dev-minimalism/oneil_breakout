@@ -21,7 +21,7 @@ warnings.filterwarnings('ignore')
 class BacktestEngine:
   """윌리엄 오닐 돌파매매 백테스트 엔진"""
 
-  def __init__(self, initial_capital: float = 10000000):
+  def __init__(self, initial_capital: float = 10_000_000):
     """
     Args:
         initial_capital: 초기 자본 (기본: 1000만원)
@@ -533,7 +533,7 @@ def example_us_stocks():
   print("\n🇺🇸 미국 주식 백테스트 예제")
 
   # 백테스트 엔진 초기화 (초기 자본 $100,000)
-  engine = BacktestEngine(initial_capital=100000)
+  engine = BacktestEngine(initial_capital=150_000_000)
 
   # 테스트할 종목
   tickers = [
@@ -639,7 +639,7 @@ def example_us_stocks():
 
   # 백테스트 실행 (최근 2년)
   end_date = datetime.now().strftime('%Y-%m-%d')
-  start_date = (datetime.now() - timedelta(days=3650)).strftime('%Y-%m-%d')
+  start_date = (datetime.now() - timedelta(days=1825)).strftime('%Y-%m-%d')
 
   engine.run_portfolio_backtest(
       tickers=tickers,
@@ -661,7 +661,7 @@ def example_kr_stocks():
   print("\n🇰🇷 한국 주식 백테스트 예제")
 
   # 백테스트 엔진 초기화
-  engine = BacktestEngine(initial_capital=10000000)
+  engine = BacktestEngine(initial_capital=100_000_000)
 
   # 테스트할 종목 (삼성전자, SK하이닉스, NAVER, 카카오, LG에너지솔루션)
   tickers = [
@@ -731,11 +731,22 @@ def custom_backtest():
   print("\n⚙️  커스텀 백테스트")
 
   # 설정
-  INITIAL_CAPITAL = 10000000  # 초기 자본
+  INITIAL_CAPITAL = 10_000_000  # 초기 자본
   MARKET = 'US'  # 'US' 또는 'KR'
-  TICKERS = ['AAPL', 'MSFT', 'GOOGL']  # 종목 리스트
-  START_DATE = '2022-01-01'  # 시작일
-  END_DATE = '2022-12-31'  # 종료일
+  TICKERS = [
+    "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL",
+    "META", "AVGO", "BRK.B", "TSLA", "TSM",
+    "JPM", "WMT", "LLY", "ORCL", "V",
+    "NFLX", "MA", "XOM", "COST", "JNJ",
+    "HD", "PG", "SAP", "PLTR", "BAC",
+    "ABBV", "ASML", "NVO", "KO", "GE",
+    "PM", "CSCO", "UNH", "BABA", "CVX",
+    "IBM", "TMUS", "WFC", "AMD", "CRM",
+    "NVS", "ABT", "MS", "TM", "AZN",
+    "AXP", "LIN", "HSBC", "MCD", "DIS"
+  ]  # 종목 리스트
+  START_DATE = '2020-01-01'  # 시작일
+  END_DATE = '2025-11-11'  # 종료일
   PATTERNS = ['pivot', 'base']  # 테스트할 패턴
 
   # 백테스트 실행
