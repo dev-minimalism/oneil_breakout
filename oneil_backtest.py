@@ -538,7 +538,7 @@ def example_us_stocks():
   # 테스트할 종목
   tickers = [
     'NVDA', 'MSFT', 'AAPL', 'AMZN', 'GOOGL',  # 1-5위'META',
-    'AVGO', 'BRK.B', 'TSLA', 'TSM',  # 6-10위
+    'AVGO', 'TSLA', 'TSM',  # 6-10위
     'JPM', 'WMT', 'LLY', 'ORCL', 'V',  # 11-15위
     'NFLX', 'MA', 'XOM', 'COST', 'JNJ',  # 16-20위
     'HD', 'PG', 'SAP', 'PLTR', 'BAC',  # 21-25위
@@ -745,7 +745,7 @@ def custom_backtest():
     "NVS", "ABT", "MS", "TM", "AZN",
     "AXP", "LIN", "HSBC", "MCD", "DIS"
   ]  # 종목 리스트
-  START_DATE = '2024-11-17'  # 시작일
+  START_DATE = '2020-01-01'  # 시작일
   END_DATE = '2025-11-18'  # 종료일
   PATTERNS = ['pivot', 'base']  # 테스트할 패턴
 
