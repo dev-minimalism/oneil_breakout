@@ -738,6 +738,9 @@ def custom_backtest():
     "META", "AVGO", "TSLA", "TSM",
     "JPM", "WMT", "LLY", "ORCL", "V",
     "NFLX", "MA", "XOM", "COST", "JNJ",
+
+
+
     "HD", "PG", "SAP", "PLTR", "BAC",
     "ABBV", "ASML", "NVO", "KO", "GE",
     "PM", "CSCO", "UNH", "BABA", "CVX",
