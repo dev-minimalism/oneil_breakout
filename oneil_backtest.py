@@ -639,7 +639,7 @@ def example_us_stocks():
 
   # 백테스트 실행 (최근 2년)
   end_date = datetime.now().strftime('%Y-%m-%d')
-  start_date = (datetime.now() - timedelta(days=1825)).strftime('%Y-%m-%d')
+  start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
   engine.run_portfolio_backtest(
       tickers=tickers,
@@ -709,7 +709,7 @@ def example_kr_stocks():
 
   # 백테스트 실행 (최근 2년)
   end_date = datetime.now().strftime('%Y-%m-%d')
-  start_date = (datetime.now() - timedelta(days=3650)).strftime('%Y-%m-%d')
+  start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
   engine.run_portfolio_backtest(
       tickers=tickers,
@@ -735,7 +735,7 @@ def custom_backtest():
   MARKET = 'US'  # 'US' 또는 'KR'
   TICKERS = [
     "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL",
-    "META", "AVGO", "BRK.B", "TSLA", "TSM",
+    "META", "AVGO", "TSLA", "TSM",
     "JPM", "WMT", "LLY", "ORCL", "V",
     "NFLX", "MA", "XOM", "COST", "JNJ",
     "HD", "PG", "SAP", "PLTR", "BAC",
@@ -745,8 +745,8 @@ def custom_backtest():
     "NVS", "ABT", "MS", "TM", "AZN",
     "AXP", "LIN", "HSBC", "MCD", "DIS"
   ]  # 종목 리스트
-  START_DATE = '2020-01-01'  # 시작일
-  END_DATE = '2025-11-11'  # 종료일
+  START_DATE = '2024-11-17'  # 시작일
+  END_DATE = '2025-11-18'  # 종료일
   PATTERNS = ['pivot', 'base']  # 테스트할 패턴
 
   # 백테스트 실행
