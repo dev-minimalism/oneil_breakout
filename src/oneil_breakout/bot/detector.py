@@ -54,9 +54,7 @@ class BreakoutDetector:
         self.scan_lock = threading.Lock()
         self.is_scanning = False
 
-        print(f"✅ 감시 종목 로드 완료")
-        print(f"   🇺🇸 미국: {self.watchlist.count_us()}개")
-        print(f"   🇰🇷 한국: {self.watchlist.count_kr()}개")
+        print(f"✅ 감시 종목 로드 완료: {self.watchlist.count_kr()}개")
         print(f"✅ 포지션 로드 완료: {self.positions.count()}개")
 
     # ========================================
@@ -74,24 +72,14 @@ class BreakoutDetector:
         if command in ('/help', '/start'):
             return self._get_help_message()
 
-        elif command == '/add_us':
+        elif command in ('/add', '/add_kr'):
             if len(parts) < 2:
-                return "❌ 사용법: /add_us [티커]\n예: /add_us AAPL"
-            return self.watchlist.add_us(parts[1])
-
-        elif command == '/add_kr':
-            if len(parts) < 2:
-                return "❌ 사용법: /add_kr [종목코드]\n예: /add_kr 005930"
+                return "❌ 사용법: /add [종목코드]\n예: /add 005930"
             return self.watchlist.add_kr(parts[1])
 
-        elif command == '/remove_us':
+        elif command in ('/remove', '/remove_kr'):
             if len(parts) < 2:
-                return "❌ 사용법: /remove_us [티커]\n예: /remove_us AAPL"
-            return self.watchlist.remove_us(parts[1])
-
-        elif command == '/remove_kr':
-            if len(parts) < 2:
-                return "❌ 사용법: /remove_kr [종목코드]\n예: /remove_kr 005930"
+                return "❌ 사용법: /remove [종목코드]\n예: /remove 005930"
             return self.watchlist.remove_kr(parts[1])
 
         elif command == '/list':
@@ -102,26 +90,20 @@ class BreakoutDetector:
             return format_market_status_message(
                 market_status,
                 self.watchlist.count_kr(),
-                self.watchlist.count_us(),
+                0,
                 self.is_scanning
             )
 
-        elif command == '/scan':
-            return 'SCAN_ALL'
-
-        elif command == '/scan_kr':
+        elif command in ('/scan', '/scan_kr'):
             return 'SCAN_KR'
-
-        elif command == '/scan_us':
-            return 'SCAN_US'
 
         elif command == '/positions':
             return self.positions.format_list_message(self._get_current_price)
 
         elif command == '/close':
             if len(parts) < 2:
-                return "❌ 사용법: /close [티커]\n예: /close AAPL"
-            return self._close_position_command(parts[1].upper())
+                return "❌ 사용법: /close [종목코드]\n예: /close 005930"
+            return self._close_position_command(parts[1])
 
         return None
 
@@ -131,27 +113,19 @@ class BreakoutDetector:
 🤖 <b>윌리엄 오닐 돌파매매 봇 명령어</b>
 
 <b>즉시 스캔:</b>
-/scan - 🌍 전체 시장 즉시 스캔
-/scan_kr - 🇰🇷 한국장만 즉시 스캔
-/scan_us - 🇺🇸 미국장만 즉시 스캔
+/scan - 즉시 스캔
 
 <b>포지션 관리:</b>
 /positions - 현재 보유 포지션 보기
-/close [티커] - 포지션 수동 청산
-  예: /close AAPL
+/close [종목코드] - 포지션 수동 청산
+  예: /close 005930
 
 <b>종목 관리:</b>
-/add_us [티커] - 미국 주식 추가
-  예: /add_us AAPL
+/add [종목코드] - 종목 추가
+  예: /add 005930
 
-/add_kr [종목코드] - 한국 주식 추가
-  예: /add_kr 005930
-
-/remove_us [티커] - 미국 주식 삭제
-  예: /remove_us AAPL
-
-/remove_kr [종목코드] - 한국 주식 삭제
-  예: /remove_kr 005930
+/remove [종목코드] - 종목 삭제
+  예: /remove 005930
 
 /list - 현재 감시 종목 보기
 
@@ -160,9 +134,7 @@ class BreakoutDetector:
 <b>팁:</b>
 • 매수 신호 발생 시 자동으로 포지션 추적
 • 손절(-8%), 익절(+20%), 30일 만료 시 알림
-• 봇이 자동으로 장 시간에 맞춰 스캔합니다
-• 한국: 09:00-15:30
-• 미국: 22:30-06:00
+• 장 시간 (09:00-15:30) 자동 스캔
 """
 
     def _close_position_command(self, ticker: str) -> str:
@@ -514,29 +486,11 @@ class BreakoutDetector:
             message_text = update['text']
             reply = self.process_command(message_text)
 
-            if reply == 'SCAN_ALL':
-                self.telegram.send_message("🌍 전체 시장 수동 스캔을 시작합니다...")
+            if reply == 'SCAN_KR':
+                self.telegram.send_message("🔍 스캔을 시작합니다...")
                 scan_thread = threading.Thread(
                     target=self._execute_scan_in_thread,
-                    args=(True, True, "전체 시장 수동 스캔"),
-                    daemon=True
-                )
-                scan_thread.start()
-
-            elif reply == 'SCAN_KR':
-                self.telegram.send_message("🇰🇷 한국장 수동 스캔을 시작합니다...")
-                scan_thread = threading.Thread(
-                    target=self._execute_scan_in_thread,
-                    args=(True, False, "한국장 수동 스캔"),
-                    daemon=True
-                )
-                scan_thread.start()
-
-            elif reply == 'SCAN_US':
-                self.telegram.send_message("🇺🇸 미국장 수동 스캔을 시작합니다...")
-                scan_thread = threading.Thread(
-                    target=self._execute_scan_in_thread,
-                    args=(False, True, "미국장 수동 스캔"),
+                    args=(True, False, "수동 스캔"),
                     daemon=True
                 )
                 scan_thread.start()
@@ -567,40 +521,27 @@ class BreakoutDetector:
     def get_start_message(self) -> str:
         """시작 메시지 생성"""
         market_status = get_market_status()
-        status_text = []
-        if market_status['kr']:
-            status_text.append("🇰🇷 한국 장중")
-        if market_status['us']:
-            status_text.append("🇺🇸 미국 장중")
-        if not status_text:
-            status_text.append("⏸️  휴장 중")
+        status_text = "🇰🇷 한국 장중" if market_status['kr'] else "⏸️ 휴장 중"
 
         interval_min = self.settings.scan.interval_seconds // 60
 
         return f"""
-🤖 <b>윌리엄 오닐 스마트 돌파매매 봇 시작</b>
+🤖 <b>윌리엄 오닐 돌파매매 봇 시작</b>
 
-📊 감시 종목:
-   🇺🇸 미국: {self.watchlist.count_us()}개
-   🇰🇷 한국: {self.watchlist.count_kr()}개
-
+📊 감시 종목: {self.watchlist.count_kr()}개
 📍 현재 포지션: {self.positions.count()}개
 
 ⏰ 스캔 주기: {interval_min}분
-🕐 현재 상태: {' + '.join(status_text)}
+🕐 현재 상태: {status_text}
 
-📈 자동 스캔:
-   • 한국 장중 (09:00-15:30)
-   • 미국 장중 (22:30-06:00)
+📈 자동 스캔: 장중 (09:00-15:30)
 
 🎯 자동 포지션 추적:
    • 매수 신호 시 자동 기록
    • 손절({self.settings.trading.stop_loss_pct}%), 익절(+{self.settings.trading.take_profit_pct}%), {self.settings.trading.max_holding_days}일 만료 알림
 
 💬 명령어:
-   /scan - 🌍 전체 즉시 스캔
-   /scan_kr - 🇰🇷 한국만 즉시 스캔
-   /scan_us - 🇺🇸 미국만 즉시 스캔
+   /scan - 즉시 스캔
    /positions - 현재 포지션 보기
    /help - 전체 명령어 보기
 

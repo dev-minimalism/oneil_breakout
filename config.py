@@ -19,7 +19,9 @@ CHAT_ID = "YOUR_CHAT_ID_HERE"
 # ========================================
 
 # 스캔할 시장 선택
-SCAN_US_MARKET = True   # 미국 주식 스캔 여부
+
+
+SCAN_US_MARKET = False  # 미국 주식 스캔 여부
 SCAN_KR_MARKET = True   # 한국 주식 스캔 여부
 
 # 둘 다 True: 미국 + 한국 동시 스캔
